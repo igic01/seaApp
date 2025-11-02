@@ -1,0 +1,18 @@
+# Ignore everything that starts with "p_"
+p_*
+
+# Ignore virtual environment
+venv/
+
+# Ignore output images
+showcase/output_detection.jpg
+showcase/output_face_detection.jpg
+showcase/output_text_detection.jpg
+showcase/output_text_detection_preprocessed.jpg
+showcase/output_text_detection_easyocr.jpg
+
+# Ignore output folders
+output_text_detection/
+output_face_detection/
+output_cover/
+

@@ -1,0 +1,12 @@
+# Minimal requirements for simple scripts
+# https://opencv.org/
+opencv-python>=4.5.0
+
+# https://numpy.org/
+numpy>=1.21.0
+
+# https://github.com/JaidedAI/EasyOCR (only for text_detection.py)
+easyocr>=1.7.0
+
+# https://pywebview.flowrl.com/ (for GUI application)
+pywebview>=4.0.0
