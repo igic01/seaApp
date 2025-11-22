@@ -1,0 +1,40 @@
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: fit-content;
+}
+
+.sidebar>div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background-color: var(--gray);
+    padding: 12.8px;
+    border-radius: var(--radius);
+    width: auto;
+}
+
+.sidebar>div>h3 {
+    margin-bottom: 4px;
+    text-wrap: nowrap;
+    font-size: var(--title);
+}
+
+.sidebar>div>label {
+    line-height: var(--text) + 2px;
+    display: flex;
+    gap: 8px;
+}
+
+.sidebar>.tools {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    width: 100%;
+    gap: 16px;
+    padding: 16px;
+}
+
+.sidebar>.tools>* {
+    margin: auto;
+}
