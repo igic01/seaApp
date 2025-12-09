@@ -3,6 +3,6 @@
     border-radius: var(--radius);
     background-color: #e5e5f7;
     opacity: 0.6;
-    background-image: radial-gradient(#000000 0.5px, #e5e5f7 0.5px);
+    background-image: radial-gradient(#000000 1px, #e5e5f7 1px);
     background-size: 10px 10px;
 }

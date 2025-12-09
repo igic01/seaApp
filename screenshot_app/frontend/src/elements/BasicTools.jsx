@@ -6,7 +6,6 @@ const toolIcons = [
     { icon: byPrefixAndName.far["folder-open"], label: "open folder" },
     { icon: byPrefixAndName.fas["floppy-disk"], label: "save" },
     { icon: byPrefixAndName.fas["pen"], label: "draw" },
-    { icon: byPrefixAndName.fas["rotate-left"], label: "undo" },
     { icon: byPrefixAndName.fas["crop"], label: "crop" },
     { icon: byPrefixAndName.far["file-lines"], label: "file lines" }
 ];
