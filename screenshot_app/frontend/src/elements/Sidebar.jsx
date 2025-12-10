@@ -1,9 +1,9 @@
-import { useState } from "react"
-import Selection from "./Selection.jsx"
-import BasicTools from "./BasicTools.jsx"
-import styles from "../styles/Sidebar.module.css"
+import { useState } from "react";
+import Selection from "./Selection.jsx";
+import BasicTools from "./BasicTools.jsx";
+import styles from "../styles/Sidebar.module.css";
 
-function Sidebar({ onOpenFolder, onToggleCrop, isCropping }) {
+function Sidebar({ onOpenFolder, onToggleCrop, onSendImage, isCropping, canSendImage }) {
     const listCovers = ["Date", "IBAN", "Phone-numbers", "Emails", "Faces"];
     const [cover, setCover] = useState([]);
 
@@ -41,10 +41,12 @@ function Sidebar({ onOpenFolder, onToggleCrop, isCropping }) {
                 className={styles.tools}
                 onOpenFolder={onOpenFolder}
                 onToggleCrop={onToggleCrop}
+                onSendImage={onSendImage}
                 isCropping={isCropping}
+                canSendImage={canSendImage}
             />
         </div>
-    )
+    );
 }
 
-export default Sidebar
+export default Sidebar;

@@ -1,60 +1,94 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export function useClipboardImage({ initialSrc = "" } = {}) {
+export function useClipboardImage({ initialSrc = "", initialName = "selected-image.png", onImageChange } = {}) {
     const [imageSrc, setImageSrc] = useState(initialSrc);
+    const [imageBlob, setImageBlob] = useState(null);
+    const [imageName, setImageName] = useState(initialName);
     const lastObjectUrlRef = useRef(null);
     const fileInputRef = useRef(null);
 
-    const setFromBlob = useCallback((blob) => {
-        if (!blob) return;
+    const cleanupObjectUrl = useCallback(() => {
         if (lastObjectUrlRef.current) {
             URL.revokeObjectURL(lastObjectUrlRef.current);
             lastObjectUrlRef.current = null;
         }
-        const url = URL.createObjectURL(blob);
-        lastObjectUrlRef.current = url;
-        setImageSrc(url);
     }, []);
 
-    const handleFiles = useCallback((fileList) => {
-        if (!fileList?.length) return;
-        const imageFile = Array.from(fileList).find((file) => file.type.startsWith("image/"));
-        if (imageFile) {
-            setFromBlob(imageFile);
-        }
-    }, [setFromBlob]);
+    const setFromBlob = useCallback(
+        (blob, name = "pasted-image.png") => {
+            if (!blob) return;
+            cleanupObjectUrl();
+            const url = URL.createObjectURL(blob);
+            lastObjectUrlRef.current = url;
+            setImageSrc(url);
+            setImageBlob(blob);
+            setImageName(name);
+        },
+        [cleanupObjectUrl]
+    );
+
+    const handleFiles = useCallback(
+        (fileList) => {
+            if (!fileList?.length) return;
+            const imageFile = Array.from(fileList).find((file) => file.type.startsWith("image/"));
+            if (imageFile) {
+                setFromBlob(imageFile, imageFile.name || initialName);
+            }
+        },
+        [initialName, setFromBlob]
+    );
 
     const triggerFileDialog = useCallback(() => {
         fileInputRef.current?.click();
     }, []);
 
-    const handlePaste = useCallback((event) => {
-        const items = event.clipboardData?.items;
-        const files = event.clipboardData?.files;
+    const handlePaste = useCallback(
+        (event) => {
+            const items = event.clipboardData?.items;
+            const files = event.clipboardData?.files;
 
-        const imageItem = items && Array.from(items).find((item) => item.type?.startsWith("image/"));
-        const fileFromItems = imageItem?.getAsFile();
-        const fileFromFiles = files && Array.from(files).find((file) => file.type?.startsWith("image/"));
-        const file = fileFromItems || fileFromFiles;
+            const imageItem = items && Array.from(items).find((item) => item.type?.startsWith("image/"));
+            const fileFromItems = imageItem?.getAsFile();
+            const fileFromFiles = files && Array.from(files).find((file) => file.type?.startsWith("image/"));
+            const file = fileFromItems || fileFromFiles;
 
-        if (!file) return;
+            if (!file) return;
 
-        event.preventDefault();
-        setFromBlob(file);
-    }, [setFromBlob]);
+            event.preventDefault();
+            setFromBlob(file, file.name || "pasted-image.png");
+        },
+        [setFromBlob]
+    );
 
-    const copyImageToClipboard = useCallback(async () => {
-        if (!imageSrc || !navigator.clipboard?.write) return false;
+    const getImageBlob = useCallback(async () => {
+        if (imageBlob) {
+            return { blob: imageBlob, name: imageName };
+        }
+        if (!imageSrc) return null;
         try {
             const response = await fetch(imageSrc);
             const blob = await response.blob();
-            await navigator.clipboard.write([new ClipboardItem({ [blob.type || "image/png"]: blob })]);
+            return { blob, name: imageName };
+        } catch (error) {
+            console.error("Failed to get image blob", error);
+            return null;
+        }
+    }, [imageBlob, imageName, imageSrc]);
+
+    const copyImageToClipboard = useCallback(async () => {
+        if (!navigator.clipboard?.write) return false;
+        const payload = await getImageBlob();
+        if (!payload) return false;
+        try {
+            await navigator.clipboard.write([
+                new ClipboardItem({ [payload.blob.type || "image/png"]: payload.blob }),
+            ]);
             return true;
         } catch (error) {
             console.error("Failed to copy image to clipboard:", error);
             return false;
         }
-    }, [imageSrc]);
+    }, [getImageBlob]);
 
     const pasteFromClipboard = useCallback(async () => {
         if (navigator.clipboard?.read) {
@@ -64,7 +98,7 @@ export function useClipboardImage({ initialSrc = "" } = {}) {
                     const type = item.types.find((t) => t.startsWith("image/"));
                     if (type) {
                         const blob = await item.getType(type);
-                        setFromBlob(blob);
+                        setFromBlob(blob, "clipboard-image.png");
                         return true;
                     }
                 }
@@ -75,11 +109,30 @@ export function useClipboardImage({ initialSrc = "" } = {}) {
         return false;
     }, [setFromBlob]);
 
+    const clearImage = useCallback(() => {
+        cleanupObjectUrl();
+        setImageSrc("");
+        setImageBlob(null);
+        setImageName(initialName);
+        onImageChange?.(null);
+    }, [cleanupObjectUrl, initialName, onImageChange]);
+
     useEffect(() => () => {
-        if (lastObjectUrlRef.current) {
-            URL.revokeObjectURL(lastObjectUrlRef.current);
+        cleanupObjectUrl();
+    }, [cleanupObjectUrl]);
+
+    useEffect(() => {
+        if (!onImageChange) return;
+        if (!imageSrc) {
+            onImageChange(null);
+            return;
         }
-    }, []);
+        onImageChange({
+            blob: imageBlob,
+            src: imageSrc,
+            name: imageName,
+        });
+    }, [imageBlob, imageName, imageSrc, onImageChange]);
 
     useEffect(() => {
         const isEditableTarget = (target) =>
@@ -120,6 +173,8 @@ export function useClipboardImage({ initialSrc = "" } = {}) {
 
     return {
         imageSrc,
+        imageBlob,
+        imageName,
         setImageSrc,
         setFromBlob,
         fileInputRef,
@@ -127,5 +182,7 @@ export function useClipboardImage({ initialSrc = "" } = {}) {
         triggerFileDialog,
         copyImageToClipboard,
         pasteFromClipboard,
+        clearImage,
+        getImageBlob,
     };
 }
