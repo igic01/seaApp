@@ -15,11 +15,11 @@ export function useCrop({
     scale,
     offset,
     imageSrc,
-    onApplyCrop,
     onStateChange,
 }) {
     const [isCropping, setIsCropping] = useState(false);
     const [cropRect, setCropRect] = useState(null);
+    const [appliedCropRect, setAppliedCropRect] = useState(null);
     const [isDraggingCrop, setIsDraggingCrop] = useState(false);
     const [metrics, setMetrics] = useState(null);
     const dragRef = useRef(null);
@@ -67,6 +67,11 @@ export function useCrop({
         [cropRect, metrics, scale]
     );
 
+    const appliedOverlayBox = useMemo(
+        () => buildOverlayBox(appliedCropRect, metrics, scale),
+        [appliedCropRect, metrics, scale]
+    );
+
     const handlePositions = useMemo(
         () => buildHandlePositions(overlayBox),
         [overlayBox]
@@ -86,46 +91,75 @@ export function useCrop({
         if (!imageSrc) return;
         syncMetrics();
         const metricsSnapshot = metrics ?? computeMetrics({ containerRef, imageRef, scale, offset });
-        setCropRect((prev) => prev ?? createDefaultRect(metricsSnapshot));
+        setCropRect((prev) => prev ?? appliedCropRect ?? createDefaultRect(metricsSnapshot));
         setCropActive(true);
-    }, [containerRef, imageRef, imageSrc, metrics, offset, scale, setCropActive, syncMetrics]);
+    }, [appliedCropRect, containerRef, imageRef, imageSrc, metrics, offset, scale, setCropActive, syncMetrics]);
 
-    const applyCrop = useCallback(async () => {
-        if (!cropRect || !imageSrc) return false;
+    const getCroppedBlob = useCallback(async () => {
+        const targetRect = appliedCropRect || cropRect;
+        if (!targetRect || !imageSrc) return null;
         const imageEl = imageRef.current;
-        if (!imageEl) return false;
+        if (!imageEl) return null;
 
-        const canvas = document.createElement("canvas");
-        const width = Math.max(1, Math.round(cropRect.width));
-        const height = Math.max(1, Math.round(cropRect.height));
-        canvas.width = width;
-        canvas.height = height;
+        const width = Math.max(1, Math.round(targetRect.width));
+        const height = Math.max(1, Math.round(targetRect.height));
+        const sx = Math.max(0, Math.round(targetRect.x));
+        const sy = Math.max(0, Math.round(targetRect.y));
 
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(imageEl, -Math.round(cropRect.x), -Math.round(cropRect.y));
+        const createCanvas = () => {
+            if (typeof OffscreenCanvas !== "undefined") {
+                return new OffscreenCanvas(width, height);
+            }
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            return canvas;
+        };
 
-        return new Promise((resolve) => {
-            canvas.toBlob(
-                (blob) => {
-                    if (blob) {
-                        onApplyCrop?.(blob);
-                        resolve(true);
-                    } else {
-                        resolve(false);
-                    }
-                },
-                "image/png"
-            );
-        });
-    }, [cropRect, imageRef, imageSrc, onApplyCrop]);
+        try {
+            let bitmap = null;
+            if (typeof createImageBitmap === "function") {
+                bitmap = await createImageBitmap(imageEl, sx, sy, width, height);
+            }
 
-    const finishCrop = useCallback(async () => {
-        if (!isCropping) return false;
-        const result = await applyCrop();
+            const canvas = createCanvas();
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return false;
+
+            if (bitmap) {
+                ctx.drawImage(bitmap, 0, 0, width, height);
+                bitmap.close?.();
+            } else {
+                ctx.drawImage(imageEl, -sx, -sy);
+            }
+
+            const blob =
+                typeof canvas.convertToBlob === "function"
+                    ? await canvas.convertToBlob({ type: "image/png" })
+                    : await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+
+            if (!blob) return null;
+            return {
+                blob,
+                name: "cropped-image.png",
+            };
+        } catch (error) {
+            console.error("Failed to apply crop", error);
+            return null;
+        }
+    }, [appliedCropRect, cropRect, imageRef, imageSrc]);
+
+    const finishCrop = useCallback(() => {
+        if (!isCropping || !cropRect) {
+            setCropActive(false);
+            setCropRect(null);
+            return false;
+        }
+        setAppliedCropRect(cropRect);
         setCropActive(false);
         setCropRect(null);
-        return result;
-    }, [applyCrop, isCropping, setCropActive]);
+        return true;
+    }, [cropRect, isCropping, setCropActive]);
 
     const toggleCrop = useCallback(() => {
         if (isCropping) {
@@ -219,9 +253,27 @@ export function useCrop({
         };
     }, [toImagePoint]);
 
+    useEffect(() => {
+        dragRef.current = null;
+    }, [imageSrc]);
+
+    const appliedClipStyle = useMemo(() => {
+        if (!appliedCropRect || !metrics?.naturalWidth || !metrics?.naturalHeight) return null;
+        const { naturalWidth, naturalHeight } = metrics;
+        const top = (appliedCropRect.y / naturalHeight) * 100;
+        const left = (appliedCropRect.x / naturalWidth) * 100;
+        const bottom = ((naturalHeight - appliedCropRect.y - appliedCropRect.height) / naturalHeight) * 100;
+        const right = ((naturalWidth - appliedCropRect.x - appliedCropRect.width) / naturalWidth) * 100;
+        const clip = `inset(${top}% ${right}% ${bottom}% ${left}%)`;
+        return { clipPath: clip, WebkitClipPath: clip };
+    }, [appliedCropRect, metrics]);
+
     return {
         isCropping,
         cropRect,
+        appliedCropRect,
+        appliedOverlayBox,
+        appliedClipStyle,
         overlayBox,
         handlePositions,
         isDraggingCrop,
@@ -230,5 +282,6 @@ export function useCrop({
         toggleCrop,
         beginHandleDrag,
         beginMoveDrag,
+        getCroppedBlob,
     };
 }

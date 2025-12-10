@@ -2,33 +2,47 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { byPrefixAndName } from "@awesome.me/kit-KIT_CODE/icons";
 
 const toolIcons = [
+    { id: "add", icon: byPrefixAndName.fas["plus"], label: "Add new" },
     { id: "open", icon: byPrefixAndName.far["folder-open"], label: "Open image" },
+    { id: "save", icon: byPrefixAndName.fas["floppy-disk"], label: "Save" },
+    { id: "draw", icon: byPrefixAndName.fas["pen"], label: "Draw" },
     { id: "crop", icon: byPrefixAndName.fas["crop"], label: "Toggle crop" },
-    { id: "send", icon: byPrefixAndName.fas["floppy-disk"], label: "Send to backend" },
+    { id: "meta", icon: byPrefixAndName.far["file-lines"], label: "File info" },
 ];
 
-function BasicTools({ className, onOpenFolder, onToggleCrop, onSendImage, isCropping, canSendImage }) {
+function BasicTools({
+    className,
+    onOpenFolder,
+    onToggleCrop,
+    onSendImage,
+    onAdd,
+    onSave,
+    onDraw,
+    onShowMeta,
+    isCropping,
+    canSendImage,
+}) {
+    const handlerMap = {
+        add: onAdd,
+        open: onOpenFolder,
+        save: onSave,
+        draw: onDraw,
+        crop: onToggleCrop,
+        meta: onShowMeta,
+        send: onSendImage,
+    };
+
     const handleClick = (id) => {
-        switch (id) {
-            case "open":
-                onOpenFolder?.();
-                break;
-            case "crop":
-                onToggleCrop?.();
-                break;
-            case "send":
-                onSendImage?.();
-                break;
-            default:
-                break;
-        }
+        handlerMap[id]?.();
     };
 
     return (
         <div className={className}>
             {toolIcons.map(({ id, icon, label }) => {
                 const active = id === "crop" && isCropping;
-                const disabled = id === "send" && !canSendImage;
+                const disabled =
+                    (id === "send" && !canSendImage) ||
+                    (!handlerMap[id] && id !== "crop" && id !== "open" && id !== "send");
                 return (
                     <button
                         key={id}

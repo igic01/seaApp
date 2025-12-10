@@ -22,13 +22,11 @@ export default function Canvas({
     const {
         imageSrc,
         imageName,
-        setFromBlob,
         fileInputRef,
         handleFiles,
         triggerFileDialog,
         getImageBlob,
     } = useClipboardImage({ initialSrc: src, onImageChange });
-    const { buildFormData, sendToBackend } = useImageSender({ getImageBlob });
     const {
         isCropping,
         overlayBox,
@@ -39,20 +37,18 @@ export default function Canvas({
         toggleCrop,
         beginHandleDrag,
         beginMoveDrag,
+        appliedOverlayBox,
+        appliedClipStyle,
+        getCroppedBlob,
     } = useCrop({
         containerRef,
         imageRef,
         scale,
         offset,
         imageSrc,
-        onApplyCrop: (blob) => {
-            const croppedName = imageName ? `cropped-${imageName}` : "cropped-image.png";
-            setFromBlob(blob, croppedName);
-            setOffset({ x: 0, y: 0 });
-            setScale(1);
-        },
         onStateChange: onCropModeChange,
     });
+    const { buildFormData, sendToBackend } = useImageSender({ getImageBlob, getCroppedBlob });
 
     useEffect(() => {
         if (onRegisterOpenFile) {
@@ -74,6 +70,7 @@ export default function Canvas({
         if (!onRegisterImageAccess) return;
         onRegisterImageAccess({
             getImageBlob,
+            getCroppedBlob,
             buildFormData,
             sendToBackend,
             imageSrc,
@@ -140,6 +137,20 @@ export default function Canvas({
                     className={styles.image}
                     style={{
                         transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+                        ...(!isCropping && appliedClipStyle ? appliedClipStyle : null),
+                    }}
+                />
+            )}
+
+            {!isCropping && appliedOverlayBox && (
+                <div
+                    className={styles.appliedOverlay}
+                    style={{
+                        left: appliedOverlayBox.relativeLeft,
+                        top: appliedOverlayBox.relativeTop,
+                        width: appliedOverlayBox.width,
+                        height: appliedOverlayBox.height,
+                        pointerEvents: "none",
                     }}
                 />
             )}

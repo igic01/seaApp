@@ -1,10 +1,10 @@
 import { useCallback } from "react";
 
-export function useImageSender({ getImageBlob } = {}) {
+export function useImageSender({ getImageBlob, getCroppedBlob } = {}) {
     const buildFormData = useCallback(
         async (extraFields = {}) => {
-            if (!getImageBlob) return null;
-            const payload = await getImageBlob();
+            if (!getImageBlob && !getCroppedBlob) return null;
+            const payload = (await getCroppedBlob?.()) || (await getImageBlob?.());
             if (!payload) return null;
 
             const formData = new FormData();
@@ -17,7 +17,7 @@ export function useImageSender({ getImageBlob } = {}) {
 
             return { formData, name: payload.name };
         },
-        [getImageBlob]
+        [getCroppedBlob, getImageBlob]
     );
 
     const sendToBackend = useCallback(
