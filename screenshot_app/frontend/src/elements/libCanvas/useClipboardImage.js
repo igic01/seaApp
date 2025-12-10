@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { copyCrop } from "./copyCrop";
 
-export function useClipboardImage({ initialSrc = "", initialName = "selected-image.png", onImageChange } = {}) {
+export function useClipboardImage({
+    initialSrc = "",
+    initialName = "selected-image.png",
+    onImageChange,
+    getCroppedBlob,
+    hasCrop = false,
+    getHasCrop,
+} = {}) {
     const [imageSrc, setImageSrc] = useState(initialSrc);
     const [imageBlob, setImageBlob] = useState(null);
     const [imageName, setImageName] = useState(initialName);
     const lastObjectUrlRef = useRef(null);
     const fileInputRef = useRef(null);
+    const onImageChangeRef = useRef(onImageChange);
 
     const cleanupObjectUrl = useCallback(() => {
         if (lastObjectUrlRef.current) {
@@ -77,7 +86,7 @@ export function useClipboardImage({ initialSrc = "", initialName = "selected-ima
 
     const copyImageToClipboard = useCallback(async () => {
         if (!navigator.clipboard?.write) return false;
-        const payload = await getImageBlob();
+        const payload = await copyCrop({ getCroppedBlob, getImageBlob, hasCrop, getHasCrop });
         if (!payload) return false;
         try {
             await navigator.clipboard.write([
@@ -88,7 +97,7 @@ export function useClipboardImage({ initialSrc = "", initialName = "selected-ima
             console.error("Failed to copy image to clipboard:", error);
             return false;
         }
-    }, [getImageBlob]);
+    }, [getCroppedBlob, getImageBlob, hasCrop, getHasCrop]);
 
     const pasteFromClipboard = useCallback(async () => {
         if (navigator.clipboard?.read) {
@@ -117,22 +126,27 @@ export function useClipboardImage({ initialSrc = "", initialName = "selected-ima
         onImageChange?.(null);
     }, [cleanupObjectUrl, initialName, onImageChange]);
 
+    useEffect(() => {
+        onImageChangeRef.current = onImageChange;
+    }, [onImageChange]);
+
     useEffect(() => () => {
         cleanupObjectUrl();
     }, [cleanupObjectUrl]);
 
     useEffect(() => {
-        if (!onImageChange) return;
+        const handler = onImageChangeRef.current;
+        if (!handler) return;
         if (!imageSrc) {
-            onImageChange(null);
+            handler(null);
             return;
         }
-        onImageChange({
+        handler({
             blob: imageBlob,
             src: imageSrc,
             name: imageName,
         });
-    }, [imageBlob, imageName, imageSrc, onImageChange]);
+    }, [imageBlob, imageName, imageSrc]);
 
     useEffect(() => {
         const isEditableTarget = (target) =>

@@ -3,7 +3,7 @@ import Selection from "./Selection.jsx";
 import BasicTools from "./BasicTools.jsx";
 import styles from "../styles/Sidebar.module.css";
 
-function Sidebar({ onOpenFolder, onToggleCrop, onSendImage, isCropping, canSendImage }) {
+function Sidebar({ onOpenFolder, onToggleCrop, onSendImage, onSaveImage, isCropping, canSendImage }) {
     const listCovers = ["Date", "IBAN", "Phone-numbers", "Emails", "Faces"];
     const [cover, setCover] = useState([]);
 
@@ -42,8 +42,10 @@ function Sidebar({ onOpenFolder, onToggleCrop, onSendImage, isCropping, canSendI
                 onOpenFolder={onOpenFolder}
                 onToggleCrop={onToggleCrop}
                 onSendImage={onSendImage}
+                onSave={onSaveImage}
                 isCropping={isCropping}
                 canSendImage={canSendImage}
+                canSaveImage={canSendImage}
             />
         </div>
     );

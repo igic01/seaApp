@@ -91,7 +91,7 @@ export function useCrop({
         if (!imageSrc) return;
         syncMetrics();
         const metricsSnapshot = metrics ?? computeMetrics({ containerRef, imageRef, scale, offset });
-        setCropRect((prev) => prev ?? appliedCropRect ?? createDefaultRect(metricsSnapshot));
+        setCropRect((prev) => prev ?? appliedCropRect ?? createDefaultRect(metricsSnapshot, 0));
         setCropActive(true);
     }, [appliedCropRect, containerRef, imageRef, imageSrc, metrics, offset, scale, setCropActive, syncMetrics]);
 
@@ -255,7 +255,10 @@ export function useCrop({
 
     useEffect(() => {
         dragRef.current = null;
-    }, [imageSrc]);
+        setCropRect(null);
+        setAppliedCropRect(null);
+        setCropActive(false);
+    }, [imageSrc, setCropActive]);
 
     const appliedClipStyle = useMemo(() => {
         if (!appliedCropRect || !metrics?.naturalWidth || !metrics?.naturalHeight) return null;
@@ -274,6 +277,7 @@ export function useCrop({
         appliedCropRect,
         appliedOverlayBox,
         appliedClipStyle,
+        hasAppliedCrop: !!appliedCropRect,
         overlayBox,
         handlePositions,
         isDraggingCrop,

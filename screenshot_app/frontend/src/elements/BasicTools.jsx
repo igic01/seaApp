@@ -21,6 +21,7 @@ function BasicTools({
     onShowMeta,
     isCropping,
     canSendImage,
+    canSaveImage,
 }) {
     const handlerMap = {
         add: onAdd,
@@ -42,6 +43,7 @@ function BasicTools({
                 const active = id === "crop" && isCropping;
                 const disabled =
                     (id === "send" && !canSendImage) ||
+                    (id === "save" && !canSaveImage) ||
                     (!handlerMap[id] && id !== "crop" && id !== "open" && id !== "send");
                 return (
                     <button

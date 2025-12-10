@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { usePan } from "./libCanvas/usePan";
 import { useZoom } from "./libCanvas/useZoom";
 import { useClipboardImage } from "./libCanvas/useClipboardImage";
@@ -17,8 +17,15 @@ export default function Canvas({
 }) {
     const containerRef = useRef(null);
     const imageRef = useRef(null);
-    const { scale, setScale } = useZoom(containerRef);
-    const { offset, isDragging, handleMouseDown, handleMouseMove, endDrag, setOffset } = usePan();
+    const cropBlobRef = useRef(null);
+    const hasCropRef = useRef(false);
+    const { scale } = useZoom(containerRef);
+    const { offset, isDragging, handleMouseDown, handleMouseMove, endDrag } = usePan();
+    const getCroppedBlobProxy = useCallback(() => {
+        const fn = cropBlobRef.current;
+        return fn ? fn() : null;
+    }, []);
+    const getHasCrop = useCallback(() => hasCropRef.current, []);
     const {
         imageSrc,
         imageName,
@@ -26,7 +33,12 @@ export default function Canvas({
         handleFiles,
         triggerFileDialog,
         getImageBlob,
-    } = useClipboardImage({ initialSrc: src, onImageChange });
+    } = useClipboardImage({
+        initialSrc: src,
+        onImageChange,
+        getCroppedBlob: getCroppedBlobProxy,
+        getHasCrop,
+    });
     const {
         isCropping,
         overlayBox,
@@ -39,6 +51,7 @@ export default function Canvas({
         beginMoveDrag,
         appliedOverlayBox,
         appliedClipStyle,
+        hasAppliedCrop,
         getCroppedBlob,
     } = useCrop({
         containerRef,
@@ -49,6 +62,11 @@ export default function Canvas({
         onStateChange: onCropModeChange,
     });
     const { buildFormData, sendToBackend } = useImageSender({ getImageBlob, getCroppedBlob });
+
+    useEffect(() => {
+        cropBlobRef.current = getCroppedBlob;
+        hasCropRef.current = !!hasAppliedCrop;
+    }, [getCroppedBlob, hasAppliedCrop]);
 
     useEffect(() => {
         if (onRegisterOpenFile) {
@@ -71,12 +89,22 @@ export default function Canvas({
         onRegisterImageAccess({
             getImageBlob,
             getCroppedBlob,
+            getHasCrop,
             buildFormData,
             sendToBackend,
             imageSrc,
             imageName,
         });
-    }, [buildFormData, getImageBlob, imageName, imageSrc, onRegisterImageAccess, sendToBackend]);
+    }, [
+        buildFormData,
+        getCroppedBlob,
+        getHasCrop,
+        getImageBlob,
+        imageName,
+        imageSrc,
+        onRegisterImageAccess,
+        sendToBackend,
+    ]);
 
     useEffect(() => {
         if (!isCropping) return undefined;

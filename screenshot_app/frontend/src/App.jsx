@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Sidebar from "./elements/Sidebar.jsx";
 import Canvas from "./elements/Canvas.jsx";
 
@@ -60,6 +60,58 @@ function App() {
     }
   };
 
+  const saveCroppedToFile = useCallback(async () => {
+    const access = imageAccessRef.current;
+    if (!access) return;
+    const payload = (await access.getCroppedBlob?.()) || (await access.getImageBlob?.());
+    if (!payload?.blob) return;
+
+    const suggestedName = payload.name || "cropped-image.png";
+
+    try {
+      if (window.showSaveFilePicker) {
+        const handle = await window.showSaveFilePicker({
+          suggestedName,
+          types: [
+            {
+              description: "Image",
+              accept: {
+                [payload.blob.type || "image/png"]: [".png", ".jpg", ".jpeg", ".webp", ".bmp"],
+              },
+            },
+          ],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(payload.blob);
+        await writable.close();
+      } else {
+        const url = URL.createObjectURL(payload.blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = suggestedName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        console.error("Failed to save cropped image", error);
+      }
+    }
+  }, []);
+
+  const handleSaveImage = async () => {
+    const access = imageAccessRef.current;
+    if (!access || !selectedImage?.src) return;
+
+    if (isCropping) {
+      cropActionsRef.current?.finish?.();
+    }
+
+    await saveCroppedToFile();
+  };
+
   return (
     <>
       <Canvas
@@ -73,8 +125,10 @@ function App() {
         onOpenFolder={handleOpenFolder}
         onToggleCrop={handleToggleCrop}
         onSendImage={handleSendImage}
+        onSaveImage={handleSaveImage}
         isCropping={isCropping}
         canSendImage={!!selectedImage?.src}
+        canSaveImage={!!selectedImage?.src}
       />
     </>
   );
