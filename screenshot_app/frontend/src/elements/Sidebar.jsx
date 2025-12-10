@@ -1,9 +1,9 @@
 import { useState } from "react"
 import Selection from "./Selection.jsx"
 import BasicTools from "./BasicTools.jsx"
-import styles from "./Sidebar.module.css"
+import styles from "../styles/Sidebar.module.css"
 
-function Sidebar() {
+function Sidebar({ onOpenFolder, onToggleCrop, isCropping }) {
     const listCovers = ["Date", "IBAN", "Phone-numbers", "Emails", "Faces"];
     const [cover, setCover] = useState([]);
 
@@ -37,7 +37,12 @@ function Sidebar() {
                 onChange={(e) => setTypeCover(e.target.value)}
             />
 
-            <BasicTools className={styles.tools} />
+            <BasicTools
+                className={styles.tools}
+                onOpenFolder={onOpenFolder}
+                onToggleCrop={onToggleCrop}
+                isCropping={isCropping}
+            />
         </div>
     )
 }

@@ -10,12 +10,37 @@ const toolIcons = [
     { icon: byPrefixAndName.far["file-lines"], label: "file lines" }
 ];
 
-function BasicTools({ className }) {
+function BasicTools({ className, onOpenFolder, onToggleCrop, isCropping }) {
     return (
         <div className={className}>
-            {toolIcons.map(({ icon, label }) => (
-                <FontAwesomeIcon key={label} icon={icon} size="lg" aria-label={label} />
-            ))}
+            {toolIcons.map(({ icon, label }) => {
+                const isCropButton = label === "crop";
+                const active = isCropButton && isCropping;
+                return (
+                    <button
+                        key={label}
+                        type="button"
+                        aria-label={label}
+                        onClick={
+                            label === "open folder"
+                                ? onOpenFolder
+                                : isCropButton
+                                    ? onToggleCrop
+                                    : undefined
+                        }
+                        style={{
+                            background: active ? "rgba(13, 110, 253, 0.1)" : "transparent",
+                            border: active ? "1px solid #0d6efd" : "none",
+                            padding: "8px",
+                            cursor: "pointer",
+                            color: active ? "#0d6efd" : "inherit",
+                            borderRadius: "6px",
+                        }}
+                    >
+                        <FontAwesomeIcon icon={icon} size="lg" aria-hidden />
+                    </button>
+                );
+            })}
         </div>
     );
 }
