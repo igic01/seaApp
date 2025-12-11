@@ -33,6 +33,7 @@ export default function Canvas({
         handleFiles,
         triggerFileDialog,
         getImageBlob,
+        copyImageToClipboard,
     } = useClipboardImage({
         initialSrc: src,
         onImageChange,
@@ -118,6 +119,16 @@ export default function Canvas({
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [finishCrop, isCropping]);
 
+    const handleContextMenuCopy = useCallback(
+        (event) => {
+            if (!imageSrc) return;
+            if (!containerRef.current?.contains(event.target)) return;
+            event.preventDefault();
+            copyImageToClipboard();
+        },
+        [copyImageToClipboard, imageSrc]
+    );
+
     const containerClasses = [
         styles.container,
         isDragging || isDraggingCrop ? styles.dragging : "",
@@ -135,6 +146,7 @@ export default function Canvas({
             onMouseUp={isCropping ? undefined : endDrag}
             onMouseLeave={isCropping ? undefined : endDrag}
             tabIndex={0}
+            onContextMenu={handleContextMenuCopy}
         >
             <input
                 type="file"
