@@ -146,7 +146,7 @@ export function useCrop({
                     if (cx + cover.width <= 0 || cy + cover.height <= 0 || cx >= width || cy >= height) {
                         return;
                     }
-                    ctx.fillStyle = cover.color || "rgba(0, 0, 0, 0.65)";
+                    ctx.fillStyle = cover.color || "#000";
                     ctx.fillRect(cx, cy, cover.width, cover.height);
                 });
             }

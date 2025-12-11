@@ -14,6 +14,7 @@ function App() {
   const [ocrCopyFeedback, setOcrCopyFeedback] = useState("");
   const [coversEnabled, setCoversEnabled] = useState(false);
   const [coverOrigin, setCoverOrigin] = useState({ x: 0, y: 0 });
+  const [coverRects, setCoverRects] = useState([]);
 
   const handleRegisterOpenFile = (fn) => {
     openFileRef.current = fn;
@@ -193,6 +194,71 @@ function App() {
     setCoversEnabled(next);
   };
 
+  const resolveOcrBoxesEndpoint = () => {
+    if (import.meta?.env?.VITE_OCR_BOXES_ENDPOINT) return import.meta.env.VITE_OCR_BOXES_ENDPOINT;
+    if (window?.location?.port === "5173") return "http://127.0.0.1:5000/api/ocr/boxes";
+    return "/api/ocr/boxes";
+  };
+
+  const handleDetectTextRegions = async () => {
+    const access = imageAccessRef.current;
+    if (!access) return;
+
+    // Apply pending crop to align detection with visible area.
+    cropActionsRef.current?.finish?.();
+    const applied = access.getAppliedCropRect?.();
+    const anchor = applied ? { x: applied.x || 0, y: applied.y || 0 } : { x: 0, y: 0 };
+
+    const built = await access.buildFormData();
+    if (!built) {
+      console.warn("No image selected for OCR boxes");
+      return;
+    }
+
+    const endpoint = resolveOcrBoxesEndpoint();
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        body: built.formData,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload?.boxes) {
+        console.warn("OCR boxes failed", payload);
+        setCoverRects([]);
+        setCoversEnabled(false);
+        return;
+      }
+
+      const boxes = Array.isArray(payload.boxes)
+        ? payload.boxes
+            .filter(
+              (b) =>
+                typeof b.x === "number" &&
+                typeof b.y === "number" &&
+                typeof b.width === "number" &&
+                typeof b.height === "number"
+            )
+            .map((b, idx) => ({
+              id: b.id ?? `box-${idx}`,
+              x: b.x,
+              y: b.y,
+              width: b.width,
+              height: b.height,
+              color: "#000",
+            }))
+        : [];
+
+      setCoverOrigin(anchor);
+      setCoverRects(boxes);
+      setCoversEnabled(true);
+    } catch (error) {
+      console.error("Failed to fetch OCR boxes", error);
+      setCoverRects([]);
+      setCoversEnabled(false);
+    }
+  };
+
   return (
     <>
       <Canvas
@@ -203,6 +269,7 @@ function App() {
         onImageChange={handleImageChange}
         coversEnabled={coversEnabled}
         coverOrigin={coverOrigin}
+        coverRects={coverRects}
       />
       <Sidebar
         onOpenFolder={handleOpenFolder}
@@ -220,6 +287,7 @@ function App() {
         copyFeedback={ocrCopyFeedback}
         onToggleCovers={handleToggleCovers}
         coversEnabled={coversEnabled}
+        onDetectTextRegions={handleDetectTextRegions}
       />
     </>
   );

@@ -5,7 +5,6 @@ import { useClipboardImage } from "./libCanvas/useClipboardImage";
 import { useCrop } from "./libCanvas/useCrop";
 import { useImageSender } from "./libCanvas/useImageSender";
 import { buildOverlayBox } from "./libCanvas/cropMath";
-import { getTestCovers } from "./libCanvas/setCovers";
 import CropOverlay from "./CropOverlay";
 import styles from "../styles/Canvas.module.css";
 
@@ -18,6 +17,7 @@ export default function Canvas({
     onImageChange,
     coversEnabled = false,
     coverOrigin = { x: 0, y: 0 },
+    coverRects = [],
 }) {
     const containerRef = useRef(null);
     const imageRef = useRef(null);
@@ -33,8 +33,8 @@ export default function Canvas({
 
     const getCoversWithOrigin = useCallback(() => {
         const origin = coverOrigin || { x: 0, y: 0 };
-        return coversEnabled ? { covers: getTestCovers(), origin } : { covers: [], origin };
-    }, [coversEnabled, coverOrigin]);
+        return coversEnabled ? { covers: coverRects, origin } : { covers: [], origin };
+    }, [coversEnabled, coverOrigin, coverRects]);
 
     const {
         imageSrc,
@@ -136,15 +136,13 @@ export default function Canvas({
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [finishCrop, isCropping]);
 
-    const coverRects = useMemo(() => (coversEnabled ? getTestCovers() : []), [coversEnabled]);
-
     const coverBoxes = useMemo(() => {
-        if (!metrics || !coverRects.length) return [];
+        if (!coversEnabled || !metrics || !coverRects.length) return [];
         const origin = coverOrigin;
         return coverRects
             .map((rect) => buildOverlayBox({ ...rect, x: rect.x + origin.x, y: rect.y + origin.y }, metrics, scale))
             .filter(Boolean);
-    }, [coverOrigin, coverRects, metrics, scale]);
+    }, [coversEnabled, coverOrigin, coverRects, metrics, scale]);
 
     const handleContextMenuCopy = useCallback(
         (event) => {

@@ -4,7 +4,7 @@ const TEST_COVERS = [
         y: 10,
         width: 20,
         height: 100,
-        color: "rgba(0, 0, 0, 0.65)",
+        color: "#000",
     },
 ];
 
@@ -26,7 +26,7 @@ export function drawCovers({ ctx, covers = [], offsetX = 0, offsetY = 0, cropReg
     covers.forEach((cover) => {
         const clipped = intersect(cover, cropRegion);
         if (!clipped) return;
-        ctx.fillStyle = clipped.color || "rgba(0, 0, 0, 0.65)";
+        ctx.fillStyle = clipped.color || "#000";
         ctx.fillRect(clipped.x + offsetX, clipped.y + offsetY, clipped.width, clipped.height);
     });
 }

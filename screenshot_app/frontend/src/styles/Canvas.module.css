@@ -95,7 +95,7 @@
 
 .coverBlock {
     position: absolute;
-    background: rgba(0, 0, 0, 0.65);
+    background: #000;
 }
 
 .coverHost {

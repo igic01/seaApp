@@ -4,7 +4,7 @@ from flask import Flask, send_from_directory, jsonify, request
 from flask_cors import CORS
 import webview
 
-from scripts.ocr import read_text_from_upload
+from scripts.ocr import read_text_from_upload, read_text_boxes
 
 # --- Paths ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -55,6 +55,21 @@ def extract_text():
 
     upload = request.files["image"]
     result = read_text_from_upload(upload)
+
+    status = result.pop("status", 200 if result.get("ok") else 500)
+    return jsonify(result), status
+
+
+@app.route("/api/ocr/boxes", methods=["POST"])
+def extract_text_boxes():
+    """
+    Accept an uploaded image, run OCR, and return bounding boxes for detected text.
+    """
+    if "image" not in request.files:
+        return jsonify({"error": "missing-image"}), 400
+
+    upload = request.files["image"]
+    result = read_text_boxes(upload)
 
     status = result.pop("status", 200 if result.get("ok") else 500)
     return jsonify(result), status

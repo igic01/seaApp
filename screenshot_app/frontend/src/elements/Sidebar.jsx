@@ -18,6 +18,7 @@ function Sidebar({
     copyFeedback,
     onToggleCovers,
     coversEnabled,
+    onDetectTextRegions,
 }) {
     const listCovers = ["Date", "IBAN", "Phone-numbers", "Emails", "Faces"];
     const [cover, setCover] = useState([]);
@@ -72,7 +73,10 @@ function Sidebar({
 
             <div className={styles.tools} style={{ marginTop: "12px" }}>
                 <button type="button" onClick={onToggleCovers}>
-                    {coversEnabled ? "Hide test cover" : "Show test cover"}
+                    {coversEnabled ? "Hide covers" : "Show covers"}
+                </button>
+                <button type="button" onClick={onDetectTextRegions}>
+                    Detect text regions
                 </button>
             </div>
 
