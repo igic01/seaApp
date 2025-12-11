@@ -16,6 +16,8 @@ function Sidebar({
     ocrError,
     onCopyOcrText,
     copyFeedback,
+    onToggleCovers,
+    coversEnabled,
 }) {
     const listCovers = ["Date", "IBAN", "Phone-numbers", "Emails", "Faces"];
     const [cover, setCover] = useState([]);
@@ -67,6 +69,12 @@ function Sidebar({
                 canSendImage={canSendImage}
                 canSaveImage={canSendImage}
             />
+
+            <div className={styles.tools} style={{ marginTop: "12px" }}>
+                <button type="button" onClick={onToggleCovers}>
+                    {coversEnabled ? "Hide test cover" : "Show test cover"}
+                </button>
+            </div>
 
             <div className={styles.ocrCard}>
                 <h3>File info</h3>

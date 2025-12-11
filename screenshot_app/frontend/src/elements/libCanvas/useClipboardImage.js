@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { copyCrop } from "./copyCrop";
+import { applyCoversToBlob } from "./setCovers";
 
 function useImageStore({ initialSrc, initialName, onImageChange }) {
     const [imageSrc, setImageSrc] = useState(initialSrc);
@@ -106,7 +107,13 @@ function useImageStore({ initialSrc, initialName, onImageChange }) {
     };
 }
 
-function useClipboardHandlers({ imageSrc, setFromBlob, getImageBlob, getCroppedBlob, getHasCrop }) {
+function useClipboardHandlers({
+    imageSrc,
+    setFromBlob,
+    getImageBlob,
+    getCroppedBlob,
+    getHasCrop,
+}) {
     const copyImageToClipboard = useCallback(async () => {
         if (!navigator.clipboard?.write) return false;
         const payload = await copyCrop({ getCroppedBlob, getImageBlob, getHasCrop });
@@ -206,18 +213,32 @@ export function useClipboardImage({
     onImageChange,
     getCroppedBlob,
     getHasCrop,
+    getCovers,
 } = {}) {
     const imageStore = useImageStore({ initialSrc, initialName, onImageChange });
+    const getImageBlobWithCovers = useCallback(async () => {
+        const base = await imageStore.getImageBlob();
+        const covers = typeof getCovers === "function" ? getCovers() : [];
+        if (!base?.blob || !covers?.length) return base;
+        const withCovers = await applyCoversToBlob({
+            blob: base.blob,
+            name: base.name,
+            covers,
+        });
+        return withCovers || base;
+    }, [getCovers, imageStore]);
+
     const { copyImageToClipboard, pasteFromClipboard } = useClipboardHandlers({
         imageSrc: imageStore.imageSrc,
         setFromBlob: imageStore.setFromBlob,
-        getImageBlob: imageStore.getImageBlob,
+        getImageBlob: getImageBlobWithCovers,
         getCroppedBlob,
         getHasCrop,
     });
 
     return {
         ...imageStore,
+        getImageBlob: getImageBlobWithCovers,
         copyImageToClipboard,
         pasteFromClipboard,
     };

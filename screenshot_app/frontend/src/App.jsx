@@ -12,6 +12,7 @@ function App() {
   const [ocrStatus, setOcrStatus] = useState("idle"); // idle | loading | success | error
   const [ocrError, setOcrError] = useState(null);
   const [ocrCopyFeedback, setOcrCopyFeedback] = useState("");
+  const [coversEnabled, setCoversEnabled] = useState(false);
 
   const handleRegisterOpenFile = (fn) => {
     openFileRef.current = fn;
@@ -181,6 +182,10 @@ function App() {
     await saveCroppedToFile();
   };
 
+  const handleToggleCovers = () => {
+    setCoversEnabled((prev) => !prev);
+  };
+
   return (
     <>
       <Canvas
@@ -189,6 +194,7 @@ function App() {
         onRegisterImageAccess={handleRegisterImageAccess}
         onCropModeChange={setIsCropping}
         onImageChange={handleImageChange}
+        coversEnabled={coversEnabled}
       />
       <Sidebar
         onOpenFolder={handleOpenFolder}
@@ -204,6 +210,8 @@ function App() {
         ocrError={ocrError}
         onCopyOcrText={handleCopyOcrText}
         copyFeedback={ocrCopyFeedback}
+        onToggleCovers={handleToggleCovers}
+        coversEnabled={coversEnabled}
       />
     </>
   );

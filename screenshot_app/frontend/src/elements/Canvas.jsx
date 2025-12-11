@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { usePan } from "./libCanvas/usePan";
 import { useZoom } from "./libCanvas/useZoom";
 import { useClipboardImage } from "./libCanvas/useClipboardImage";
 import { useCrop } from "./libCanvas/useCrop";
 import { useImageSender } from "./libCanvas/useImageSender";
+import { buildOverlayBox } from "./libCanvas/cropMath";
+import { getTestCovers } from "./libCanvas/setCovers";
 import CropOverlay from "./CropOverlay";
 import styles from "../styles/Canvas.module.css";
 
@@ -14,6 +16,7 @@ export default function Canvas({
     onRegisterImageAccess,
     onCropModeChange,
     onImageChange,
+    coversEnabled = false,
 }) {
     const containerRef = useRef(null);
     const imageRef = useRef(null);
@@ -39,6 +42,7 @@ export default function Canvas({
         onImageChange,
         getCroppedBlob: getCroppedBlobProxy,
         getHasCrop,
+        getCovers: () => (coversEnabled ? getTestCovers() : []),
     });
     const {
         isCropping,
@@ -54,6 +58,7 @@ export default function Canvas({
         appliedClipStyle,
         hasAppliedCrop,
         getCroppedBlob,
+        metrics,
     } = useCrop({
         containerRef,
         imageRef,
@@ -61,6 +66,7 @@ export default function Canvas({
         offset,
         imageSrc,
         onStateChange: onCropModeChange,
+        getCovers: () => (coversEnabled ? getTestCovers() : []),
     });
     const { buildFormData, sendToBackend } = useImageSender({ getImageBlob, getCroppedBlob });
 
@@ -118,6 +124,15 @@ export default function Canvas({
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [finishCrop, isCropping]);
+
+    const coverRects = useMemo(() => (coversEnabled ? getTestCovers() : []), [coversEnabled]);
+
+    const coverBoxes = useMemo(() => {
+        if (!metrics || !coverRects.length) return [];
+        return coverRects
+            .map((rect) => buildOverlayBox(rect, metrics, scale))
+            .filter(Boolean);
+    }, [coverRects, metrics, scale]);
 
     const handleContextMenuCopy = useCallback(
         (event) => {
@@ -193,6 +208,32 @@ export default function Canvas({
                         pointerEvents: "none",
                     }}
                 />
+            )}
+
+            {coverBoxes.length > 0 && metrics && (
+                <div
+                    className={styles.coverLayer}
+                    style={{
+                        left: metrics.relativeLeft,
+                        top: metrics.relativeTop,
+                        width: metrics.boxWidth,
+                        height: metrics.boxHeight,
+                        ...(appliedClipStyle || {}),
+                    }}
+                >
+                    {coverBoxes.map((box, idx) => (
+                        <div
+                            key={idx}
+                            className={styles.coverBlock}
+                            style={{
+                                left: box.relativeLeft - metrics.relativeLeft,
+                                top: box.relativeTop - metrics.relativeTop,
+                                width: box.width,
+                                height: box.height,
+                            }}
+                        />
+                    ))}
+                </div>
             )}
 
             {isCropping && overlayBox && (

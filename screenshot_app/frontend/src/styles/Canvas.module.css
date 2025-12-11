@@ -83,3 +83,14 @@
     transform: translate(-50%, -50%);
     box-sizing: border-box;
 }
+
+.coverLayer {
+    position: absolute;
+    pointer-events: none;
+    z-index: 4;
+}
+
+.coverBlock {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.65);
+}

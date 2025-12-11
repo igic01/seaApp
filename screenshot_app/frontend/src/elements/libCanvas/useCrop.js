@@ -16,6 +16,7 @@ export function useCrop({
     offset,
     imageSrc,
     onStateChange,
+    getCovers,
 }) {
     const [isCropping, setIsCropping] = useState(false);
     const [cropRect, setCropRect] = useState(null);
@@ -133,6 +134,19 @@ export function useCrop({
                 ctx.drawImage(imageEl, -sx, -sy);
             }
 
+            const covers = typeof getCovers === "function" ? getCovers() : [];
+            if (covers?.length) {
+                covers.forEach((cover) => {
+                    const cx = cover.x - sx;
+                    const cy = cover.y - sy;
+                    if (cx + cover.width <= 0 || cy + cover.height <= 0 || cx >= width || cy >= height) {
+                        return;
+                    }
+                    ctx.fillStyle = cover.color || "rgba(0, 0, 0, 0.65)";
+                    ctx.fillRect(cx, cy, cover.width, cover.height);
+                });
+            }
+
             const blob =
                 typeof canvas.convertToBlob === "function"
                     ? await canvas.convertToBlob({ type: "image/png" })
@@ -147,7 +161,7 @@ export function useCrop({
             console.error("Failed to apply crop", error);
             return null;
         }
-    }, [appliedCropRect, cropRect, imageRef, imageSrc]);
+    }, [appliedCropRect, cropRect, imageRef, imageSrc, getCovers]);
 
     const finishCrop = useCallback(() => {
         if (!isCropping || !cropRect) {
@@ -277,6 +291,7 @@ export function useCrop({
         appliedCropRect,
         appliedOverlayBox,
         appliedClipStyle,
+        metrics,
         hasAppliedCrop: !!appliedCropRect,
         overlayBox,
         handlePositions,
