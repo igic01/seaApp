@@ -35,10 +35,17 @@ function useImageStore({ initialSrc, initialName, onImageChange }) {
             if (!fileList?.length) return;
             const imageFile = Array.from(fileList).find((file) => file.type.startsWith("image/"));
             if (imageFile) {
+                const sameName = imageName && imageFile.name === imageName;
+                if (sameName) {
+                    const confirmed = window.confirm(
+                        "You are reopening the same image. This will reset covers and selections. Continue?"
+                    );
+                    if (!confirmed) return;
+                }
                 setFromBlob(imageFile, imageFile.name || initialName);
             }
         },
-        [initialName, setFromBlob]
+        [imageName, initialName, setFromBlob]
     );
 
     const triggerFileDialog = useCallback(() => {

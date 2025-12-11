@@ -18,6 +18,7 @@ export default function Canvas({
     coversEnabled = false,
     coverOrigin = { x: 0, y: 0 },
     coverRects = [],
+    isDetectingText = false,
 }) {
     const containerRef = useRef(null);
     const imageRef = useRef(null);
@@ -178,7 +179,11 @@ export default function Canvas({
                 accept="image/*"
                 ref={fileInputRef}
                 className={styles.hiddenInput}
-                onChange={(e) => handleFiles(e.target.files)}
+                onChange={(e) => {
+                    handleFiles(e.target.files);
+                    // Allow selecting the same file again by clearing the input.
+                    e.target.value = "";
+                }}
             />
 
             {!imageSrc && (
@@ -240,6 +245,8 @@ export default function Canvas({
                                     top: box.relativeTop - metrics.relativeTop,
                                     width: box.width,
                                     height: box.height,
+                                    filter: isCropping ? "grayscale(1)" : "none",
+                                    opacity: isCropping ? 0.5 : 1,
                                 }}
                             />
                         ))}
@@ -254,6 +261,10 @@ export default function Canvas({
                     onOverlayMouseDown={beginMoveDrag}
                     onHandleMouseDown={beginHandleDrag}
                 />
+            )}
+
+            {isDetectingText && (
+                <div className={styles.detectBanner}>Detecting text regions…</div>
             )}
 
         </div>

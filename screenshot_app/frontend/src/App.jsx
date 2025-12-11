@@ -15,6 +15,7 @@ function App() {
   const [coversEnabled, setCoversEnabled] = useState(false);
   const [coverOrigin, setCoverOrigin] = useState({ x: 0, y: 0 });
   const [coverRects, setCoverRects] = useState([]);
+  const [isDetectingText, setIsDetectingText] = useState(false);
 
   const handleRegisterOpenFile = (fn) => {
     openFileRef.current = fn;
@@ -34,6 +35,10 @@ function App() {
     setOcrStatus("idle");
     setOcrError(null);
     setOcrCopyFeedback("");
+    setCoverRects([]);
+    setCoversEnabled(false);
+    setCoverOrigin({ x: 0, y: 0 });
+    setIsDetectingText(false);
   };
 
   const handleOpenFolder = () => {
@@ -218,6 +223,7 @@ function App() {
     const endpoint = resolveOcrBoxesEndpoint();
 
     try {
+      setIsDetectingText(true);
       const response = await fetch(endpoint, {
         method: "POST",
         body: built.formData,
@@ -256,6 +262,8 @@ function App() {
       console.error("Failed to fetch OCR boxes", error);
       setCoverRects([]);
       setCoversEnabled(false);
+    } finally {
+      setIsDetectingText(false);
     }
   };
 
@@ -270,6 +278,7 @@ function App() {
         coversEnabled={coversEnabled}
         coverOrigin={coverOrigin}
         coverRects={coverRects}
+        isDetectingText={isDetectingText}
       />
       <Sidebar
         onOpenFolder={handleOpenFolder}

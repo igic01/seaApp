@@ -105,3 +105,17 @@
     overflow: hidden;
     z-index: 4;
 }
+
+.detectBanner {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 12;
+    pointer-events: none;
+}
