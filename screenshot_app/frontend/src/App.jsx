@@ -13,6 +13,7 @@ function App() {
   const [ocrError, setOcrError] = useState(null);
   const [ocrCopyFeedback, setOcrCopyFeedback] = useState("");
   const [coversEnabled, setCoversEnabled] = useState(false);
+  const [coverOrigin, setCoverOrigin] = useState({ x: 0, y: 0 });
 
   const handleRegisterOpenFile = (fn) => {
     openFileRef.current = fn;
@@ -183,7 +184,13 @@ function App() {
   };
 
   const handleToggleCovers = () => {
-    setCoversEnabled((prev) => !prev);
+    const next = !coversEnabled;
+    if (next) {
+      const applied = imageAccessRef.current?.getAppliedCropRect?.();
+      const anchor = applied ? { x: applied.x || 0, y: applied.y || 0 } : { x: 0, y: 0 };
+      setCoverOrigin(anchor);
+    }
+    setCoversEnabled(next);
   };
 
   return (
@@ -195,6 +202,7 @@ function App() {
         onCropModeChange={setIsCropping}
         onImageChange={handleImageChange}
         coversEnabled={coversEnabled}
+        coverOrigin={coverOrigin}
       />
       <Sidebar
         onOpenFolder={handleOpenFolder}

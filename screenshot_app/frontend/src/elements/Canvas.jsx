@@ -17,6 +17,7 @@ export default function Canvas({
     onCropModeChange,
     onImageChange,
     coversEnabled = false,
+    coverOrigin = { x: 0, y: 0 },
 }) {
     const containerRef = useRef(null);
     const imageRef = useRef(null);
@@ -29,6 +30,12 @@ export default function Canvas({
         return fn ? fn() : null;
     }, []);
     const getHasCrop = useCallback(() => hasCropRef.current, []);
+
+    const getCoversWithOrigin = useCallback(() => {
+        const origin = coverOrigin || { x: 0, y: 0 };
+        return coversEnabled ? { covers: getTestCovers(), origin } : { covers: [], origin };
+    }, [coversEnabled, coverOrigin]);
+
     const {
         imageSrc,
         imageName,
@@ -42,7 +49,7 @@ export default function Canvas({
         onImageChange,
         getCroppedBlob: getCroppedBlobProxy,
         getHasCrop,
-        getCovers: () => (coversEnabled ? getTestCovers() : []),
+        getCovers: getCoversWithOrigin,
     });
     const {
         isCropping,
@@ -56,6 +63,7 @@ export default function Canvas({
         beginMoveDrag,
         appliedOverlayBox,
         appliedClipStyle,
+        appliedCropRect,
         hasAppliedCrop,
         getCroppedBlob,
         metrics,
@@ -66,8 +74,9 @@ export default function Canvas({
         offset,
         imageSrc,
         onStateChange: onCropModeChange,
-        getCovers: () => (coversEnabled ? getTestCovers() : []),
+        getCovers: getCoversWithOrigin,
     });
+
     const { buildFormData, sendToBackend } = useImageSender({ getImageBlob, getCroppedBlob });
 
     useEffect(() => {
@@ -101,6 +110,7 @@ export default function Canvas({
             sendToBackend,
             imageSrc,
             imageName,
+            getAppliedCropRect: () => appliedCropRect || null,
         });
     }, [
         buildFormData,
@@ -111,6 +121,7 @@ export default function Canvas({
         imageSrc,
         onRegisterImageAccess,
         sendToBackend,
+        appliedCropRect
     ]);
 
     useEffect(() => {
@@ -129,10 +140,11 @@ export default function Canvas({
 
     const coverBoxes = useMemo(() => {
         if (!metrics || !coverRects.length) return [];
+        const origin = coverOrigin;
         return coverRects
-            .map((rect) => buildOverlayBox(rect, metrics, scale))
+            .map((rect) => buildOverlayBox({ ...rect, x: rect.x + origin.x, y: rect.y + origin.y }, metrics, scale))
             .filter(Boolean);
-    }, [coverRects, metrics, scale]);
+    }, [coverOrigin, coverRects, metrics, scale]);
 
     const handleContextMenuCopy = useCallback(
         (event) => {
@@ -212,13 +224,13 @@ export default function Canvas({
 
             {coverBoxes.length > 0 && metrics && (
                 <div
-                    className={styles.coverLayer}
+                    className={`${styles.coverLayer}`}
                     style={{
                         left: metrics.relativeLeft,
                         top: metrics.relativeTop,
                         width: metrics.boxWidth,
                         height: metrics.boxHeight,
-                        ...(appliedClipStyle || {}),
+                        ...(!isCropping && appliedClipStyle ? appliedClipStyle : {}),
                     }}
                 >
                     {coverBoxes.map((box, idx) => (

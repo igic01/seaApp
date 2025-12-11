@@ -134,11 +134,15 @@ export function useCrop({
                 ctx.drawImage(imageEl, -sx, -sy);
             }
 
-            const covers = typeof getCovers === "function" ? getCovers() : [];
+            const coversPayload = typeof getCovers === "function" ? getCovers() : [];
+            const covers = Array.isArray(coversPayload) ? coversPayload : coversPayload?.covers || [];
+            const origin = Array.isArray(coversPayload) ? { x: 0, y: 0 } : coversPayload?.origin || { x: 0, y: 0 };
             if (covers?.length) {
                 covers.forEach((cover) => {
-                    const cx = cover.x - sx;
-                    const cy = cover.y - sy;
+                    const absX = (cover?.x || 0) + (origin?.x || 0);
+                    const absY = (cover?.y || 0) + (origin?.y || 0);
+                    const cx = absX - sx;
+                    const cy = absY - sy;
                     if (cx + cover.width <= 0 || cy + cover.height <= 0 || cx >= width || cy >= height) {
                         return;
                     }

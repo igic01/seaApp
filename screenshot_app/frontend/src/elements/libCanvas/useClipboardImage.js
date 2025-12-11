@@ -218,12 +218,21 @@ export function useClipboardImage({
     const imageStore = useImageStore({ initialSrc, initialName, onImageChange });
     const getImageBlobWithCovers = useCallback(async () => {
         const base = await imageStore.getImageBlob();
-        const covers = typeof getCovers === "function" ? getCovers() : [];
+        const coversPayload = typeof getCovers === "function" ? getCovers() : [];
+        const covers = Array.isArray(coversPayload) ? coversPayload : coversPayload?.covers || [];
+        const origin = Array.isArray(coversPayload) ? { x: 0, y: 0 } : coversPayload?.origin || { x: 0, y: 0 };
         if (!base?.blob || !covers?.length) return base;
+
+        const absoluteCovers = covers.map((cover) => ({
+            ...cover,
+            x: (cover?.x || 0) + (origin?.x || 0),
+            y: (cover?.y || 0) + (origin?.y || 0),
+        }));
+
         const withCovers = await applyCoversToBlob({
             blob: base.blob,
             name: base.name,
-            covers,
+            covers: absoluteCovers,
         });
         return withCovers || base;
     }, [getCovers, imageStore]);
