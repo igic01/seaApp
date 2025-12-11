@@ -8,6 +8,10 @@ function App() {
   const imageAccessRef = useRef(null);
   const [isCropping, setIsCropping] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [ocrText, setOcrText] = useState("");
+  const [ocrStatus, setOcrStatus] = useState("idle"); // idle | loading | success | error
+  const [ocrError, setOcrError] = useState(null);
+  const [ocrCopyFeedback, setOcrCopyFeedback] = useState("");
 
   const handleRegisterOpenFile = (fn) => {
     openFileRef.current = fn;
@@ -23,6 +27,10 @@ function App() {
 
   const handleImageChange = (payload) => {
     setSelectedImage(payload);
+    setOcrText("");
+    setOcrStatus("idle");
+    setOcrError(null);
+    setOcrCopyFeedback("");
   };
 
   const handleOpenFolder = () => {
@@ -57,6 +65,67 @@ function App() {
       }
     } catch (error) {
       console.error("Failed to send image", error);
+    }
+  };
+
+  const resolveOcrEndpoint = () => {
+    if (import.meta?.env?.VITE_OCR_ENDPOINT) return import.meta.env.VITE_OCR_ENDPOINT;
+    // If running Vite dev server (usually port 5173), default to the Flask backend on 5000.
+    if (window?.location?.port === "5173") return "http://127.0.0.1:5000/api/ocr";
+    return "/api/ocr";
+  };
+
+  const handleExtractText = async () => {
+    const access = imageAccessRef.current;
+    if (!access) return;
+
+    // Apply any pending crop so OCR uses the selected region.
+    cropActionsRef.current?.finish?.();
+
+    const built = await access.buildFormData();
+    if (!built) {
+      setOcrStatus("error");
+      setOcrError("No image selected.");
+      setOcrText("");
+      return;
+    }
+
+    const endpoint = resolveOcrEndpoint();
+
+    setOcrStatus("loading");
+    setOcrError(null);
+    setOcrCopyFeedback("");
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        body: built.formData,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setOcrStatus("error");
+        setOcrError(payload?.error || payload?.message || "Failed to read text from image.");
+        setOcrText("");
+        return;
+      }
+
+      setOcrText(typeof payload?.text === "string" ? payload.text : "");
+      setOcrStatus("success");
+    } catch (error) {
+      setOcrStatus("error");
+      setOcrError(error?.message || "Failed to contact OCR service.");
+      setOcrText("");
+    }
+  };
+
+  const handleCopyOcrText = async () => {
+    if (!ocrText) return;
+    try {
+      await navigator.clipboard.writeText(ocrText);
+      setOcrCopyFeedback("Copied!");
+      setTimeout(() => setOcrCopyFeedback(""), 1500);
+    } catch (error) {
+      setOcrCopyFeedback("Copy failed");
     }
   };
 
@@ -125,10 +194,16 @@ function App() {
         onOpenFolder={handleOpenFolder}
         onToggleCrop={handleToggleCrop}
         onSendImage={handleSendImage}
+        onShowMeta={handleExtractText}
         onSaveImage={handleSaveImage}
         isCropping={isCropping}
         canSendImage={!!selectedImage?.src}
         canSaveImage={!!selectedImage?.src}
+        ocrText={ocrText}
+        ocrStatus={ocrStatus}
+        ocrError={ocrError}
+        onCopyOcrText={handleCopyOcrText}
+        copyFeedback={ocrCopyFeedback}
       />
     </>
   );

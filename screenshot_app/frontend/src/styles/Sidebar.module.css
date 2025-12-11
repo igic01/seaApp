@@ -38,3 +38,39 @@
 .sidebar>.tools>* {
     margin: auto;
 }
+
+.ocrCard {
+    gap: 8px;
+}
+
+.ocrStatus {
+    font-size: 14px;
+    color: var(--light-gray);
+}
+
+.ocrText {
+    width: 100%;
+    min-height: 140px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--white);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius);
+    padding: 8px;
+    resize: vertical;
+}
+
+.ocrActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.copyFeedback {
+    font-size: 14px;
+    color: #9ae6b4;
+}
+
+.error {
+    color: #ff7b7b;
+    font-size: 14px;
+}
