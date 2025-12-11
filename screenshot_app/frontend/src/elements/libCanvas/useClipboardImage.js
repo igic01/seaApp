@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { copyCrop } from "./copyCrop";
 
-export function useClipboardImage({
-    initialSrc = "",
-    initialName = "selected-image.png",
-    onImageChange,
-    getCroppedBlob,
-    hasCrop = false,
-    getHasCrop,
-} = {}) {
+function useImageStore({ initialSrc, initialName, onImageChange }) {
     const [imageSrc, setImageSrc] = useState(initialSrc);
     const [imageBlob, setImageBlob] = useState(null);
     const [imageName, setImageName] = useState(initialName);
@@ -51,7 +44,86 @@ export function useClipboardImage({
         fileInputRef.current?.click();
     }, []);
 
-    const handlePaste = useCallback(
+    const getImageBlob = useCallback(async () => {
+        if (imageBlob) {
+            return { blob: imageBlob, name: imageName };
+        }
+        if (!imageSrc) return null;
+        try {
+            const response = await fetch(imageSrc);
+            const blob = await response.blob();
+            return { blob, name: imageName };
+        } catch (error) {
+            console.error("Failed to get image blob", error);
+            return null;
+        }
+    }, [imageBlob, imageName, imageSrc]);
+
+    const clearImage = useCallback(() => {
+        cleanupObjectUrl();
+        setImageSrc("");
+        setImageBlob(null);
+        setImageName(initialName);
+        onImageChange?.(null);
+    }, [cleanupObjectUrl, initialName, onImageChange]);
+
+    useEffect(() => {
+        onImageChangeRef.current = onImageChange;
+    }, [onImageChange]);
+
+    useEffect(
+        () => () => {
+            cleanupObjectUrl();
+        },
+        [cleanupObjectUrl]
+    );
+
+    useEffect(() => {
+        const handler = onImageChangeRef.current;
+        if (!handler) return;
+        if (!imageSrc) {
+            handler(null);
+            return;
+        }
+        handler({
+            blob: imageBlob,
+            src: imageSrc,
+            name: imageName,
+        });
+    }, [imageBlob, imageName, imageSrc]);
+
+    return {
+        imageSrc,
+        imageBlob,
+        imageName,
+        setImageSrc,
+        setFromBlob,
+        fileInputRef,
+        handleFiles,
+        triggerFileDialog,
+        clearImage,
+        getImageBlob,
+    };
+}
+
+function useClipboardHandlers({ imageSrc, setFromBlob, getImageBlob, getCroppedBlob, getHasCrop }) {
+    const copyImageToClipboard = useCallback(async () => {
+        if (!navigator.clipboard?.write) return false;
+        const payload = await copyCrop({ getCroppedBlob, getImageBlob, getHasCrop });
+        if (!payload) return false;
+
+        try {
+            await navigator.clipboard.write([
+                new ClipboardItem({ [payload.blob.type || "image/png"]: payload.blob }),
+            ]);
+            return true;
+        } catch (error) {
+            console.error("Failed to copy image to clipboard:", error);
+            return false;
+        }
+    }, [getCroppedBlob, getHasCrop, getImageBlob]);
+
+    const handlePasteEvent = useCallback(
         (event) => {
             const items = event.clipboardData?.items;
             const files = event.clipboardData?.files;
@@ -68,36 +140,6 @@ export function useClipboardImage({
         },
         [setFromBlob]
     );
-
-    const getImageBlob = useCallback(async () => {
-        if (imageBlob) {
-            return { blob: imageBlob, name: imageName };
-        }
-        if (!imageSrc) return null;
-        try {
-            const response = await fetch(imageSrc);
-            const blob = await response.blob();
-            return { blob, name: imageName };
-        } catch (error) {
-            console.error("Failed to get image blob", error);
-            return null;
-        }
-    }, [imageBlob, imageName, imageSrc]);
-
-    const copyImageToClipboard = useCallback(async () => {
-        if (!navigator.clipboard?.write) return false;
-        const payload = await copyCrop({ getCroppedBlob, getImageBlob, hasCrop, getHasCrop });
-        if (!payload) return false;
-        try {
-            await navigator.clipboard.write([
-                new ClipboardItem({ [payload.blob.type || "image/png"]: payload.blob }),
-            ]);
-            return true;
-        } catch (error) {
-            console.error("Failed to copy image to clipboard:", error);
-            return false;
-        }
-    }, [getCroppedBlob, getImageBlob, hasCrop, getHasCrop]);
 
     const pasteFromClipboard = useCallback(async () => {
         if (navigator.clipboard?.read) {
@@ -117,36 +159,6 @@ export function useClipboardImage({
         }
         return false;
     }, [setFromBlob]);
-
-    const clearImage = useCallback(() => {
-        cleanupObjectUrl();
-        setImageSrc("");
-        setImageBlob(null);
-        setImageName(initialName);
-        onImageChange?.(null);
-    }, [cleanupObjectUrl, initialName, onImageChange]);
-
-    useEffect(() => {
-        onImageChangeRef.current = onImageChange;
-    }, [onImageChange]);
-
-    useEffect(() => () => {
-        cleanupObjectUrl();
-    }, [cleanupObjectUrl]);
-
-    useEffect(() => {
-        const handler = onImageChangeRef.current;
-        if (!handler) return;
-        if (!imageSrc) {
-            handler(null);
-            return;
-        }
-        handler({
-            blob: imageBlob,
-            src: imageSrc,
-            name: imageName,
-        });
-    }, [imageBlob, imageName, imageSrc]);
 
     useEffect(() => {
         const isEditableTarget = (target) =>
@@ -175,28 +187,38 @@ export function useClipboardImage({
         };
 
         window.addEventListener("keydown", handleKeyDown);
-        window.addEventListener("paste", handlePaste);
+        window.addEventListener("paste", handlePasteEvent);
         window.addEventListener("copy", handleCopy);
 
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
-            window.removeEventListener("paste", handlePaste);
+            window.removeEventListener("paste", handlePasteEvent);
             window.removeEventListener("copy", handleCopy);
         };
-    }, [handlePaste, copyImageToClipboard, pasteFromClipboard, imageSrc]);
+    }, [copyImageToClipboard, handlePasteEvent, imageSrc, pasteFromClipboard]);
+
+    return { copyImageToClipboard, pasteFromClipboard };
+}
+
+export function useClipboardImage({
+    initialSrc = "",
+    initialName = "selected-image.png",
+    onImageChange,
+    getCroppedBlob,
+    getHasCrop,
+} = {}) {
+    const imageStore = useImageStore({ initialSrc, initialName, onImageChange });
+    const { copyImageToClipboard, pasteFromClipboard } = useClipboardHandlers({
+        imageSrc: imageStore.imageSrc,
+        setFromBlob: imageStore.setFromBlob,
+        getImageBlob: imageStore.getImageBlob,
+        getCroppedBlob,
+        getHasCrop,
+    });
 
     return {
-        imageSrc,
-        imageBlob,
-        imageName,
-        setImageSrc,
-        setFromBlob,
-        fileInputRef,
-        handleFiles,
-        triggerFileDialog,
+        ...imageStore,
         copyImageToClipboard,
         pasteFromClipboard,
-        clearImage,
-        getImageBlob,
     };
 }

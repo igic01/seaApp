@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Paste & Visual Crop</title>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #f3f3f3;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 { margin: 0 0 10px; font-size: 20px; }
+
+        #dropzone {
+            border: 2px dashed #999;
+            border-radius: 8px;
+            padding: 20px;
+            width: min(600px, 100%);
+            text-align: center;
+            background: #fff;
+            color: #555;
+        }
+
+        #editor {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            width: min(700px, 100%);
+        }
+
+        #crop-container {
+            position: relative;
+            border: 2px solid #0077cc;
+            border-radius: 8px;
+            overflow: hidden;           /* visual crop */
+            width: 600px;
+            max-width: 100%;
+            height: 350px;
+            margin: 0 auto;
+            background: #222;           /* the “gray” you see when img not drawn */
+        }
+
+        #image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            max-width: none;
+            user-select: none;
+            cursor: grab;
+        }
+
+        #image.dragging { cursor: grabbing; }
+
+        #crop-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            border: 2px dashed rgba(255, 255, 255, 0.7);
+        }
+
+        #controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        #info { font-size: 13px; color: #555; }
+
+        button {
+            padding: 8px 14px;
+            border-radius: 6px;
+            border: none;
+            background: #0077cc;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            background: #aaa;
+            cursor: not-allowed;
+        }
+
+        #status {
+            font-size: 13px;
+            color: #007700;
+        }
+
+        #status.error { color: #cc0000; }
+    </style>
+</head>
+<body>
+<h1>Paste image, crop visually, copy cropped to clipboard</h1>
+
+<div id="dropzone">
+    <strong>Click the page and press Ctrl+V to paste an image</strong>
+    Right-click → “Paste” usually will not work for images due to browser permissions.
+</div>
+
+<div id="editor">
+    <div id="crop-container">
+        <img id="image" alt="Pasted image">
+        <div id="crop-overlay"></div>
+    </div>
+    <div id="controls">
+        <div id="info"></div>
+        <div>
+            <button id="copy-btn" disabled>Copy cropped image</button>
+            <span id="status"></span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const dropzone   = document.getElementById('dropzone');
+    const editor     = document.getElementById('editor');
+    const img        = document.getElementById('image');
+    const cropBox    = document.getElementById('crop-container');
+    const info       = document.getElementById('info');
+    const copyBtn    = document.getElementById('copy-btn');
+    const statusEl   = document.getElementById('status');
+
+    let imgLoaded = false;
+    let isDragging = false;
+    let dragStartX = 0, dragStartY = 0;
+    let imgStartLeft = 0, imgStartTop = 0;
+    let pasteObjectURL = null;
+
+    function setStatus(msg, error = false) {
+        statusEl.textContent = msg || '';
+        statusEl.classList.toggle('error', !!error);
+        console.log('[STATUS]', msg);
+    }
+
+    function clearStatus() { setStatus(''); }
+
+    // MAIN: paste handler
+    window.addEventListener('paste', (e) => {
+        clearStatus();
+        const items = e.clipboardData?.items;
+        if (!items) {
+            setStatus('Clipboard items not accessible.', true);
+            return;
+        }
+
+        let file = null;
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                file = item.getAsFile();
+                break;
+            }
+        }
+
+        if (!file) {
+            setStatus('No image found in clipboard.', true);
+            return;
+        }
+
+        if (pasteObjectURL) {
+            URL.revokeObjectURL(pasteObjectURL);
+            pasteObjectURL = null;
+        }
+
+        const url = URL.createObjectURL(file);
+        pasteObjectURL = url;
+
+        imgLoaded = false;
+        img.src = url;
+        setStatus('Loading image...');
+
+        // show editor now so cropBox has real size
+        editor.style.display = 'flex';
+    });
+
+    // When the image loads, fit it into the crop box
+    img.onload = () => {
+        imgLoaded = true;
+        info.textContent = `Image: ${img.naturalWidth} × ${img.naturalHeight} px. Drag inside the box to choose crop area.`;
+        setStatus('Image pasted. Ready to crop.');
+
+        // Wait one frame to ensure cropBox has its final size
+        requestAnimationFrame(() => setupImageInContainer());
+        copyBtn.disabled = false;
+    };
+
+    img.onerror = () => {
+        setStatus('Failed to load pasted image.', true);
+    };
+
+    function setupImageInContainer() {
+        const cw = cropBox.clientWidth;
+        const ch = cropBox.clientHeight;
+        const iw = img.naturalWidth;
+        const ih = img.naturalHeight;
+
+        console.log('setupImageInContainer', {cw, ch, iw, ih});
+        if (!iw || !ih) {
+            setStatus('Image natural size is 0 – retrying...', true);
+            return;
+        }
+
+        const scale = Math.max(cw / iw, ch / ih);
+        const displayW = iw * scale;
+        const displayH = ih * scale;
+
+        img.style.width  = displayW + 'px';
+        img.style.height = displayH + 'px';
+
+        const left = (cw - displayW) / 2;
+        const top  = (ch - displayH) / 2;
+
+        img.style.left = left + 'px';
+        img.style.top  = top + 'px';
+    }
+
+    // Drag logic for visual cropping
+    function startDrag(e) {
+        if (!imgLoaded) return;
+        e.preventDefault();
+
+        isDragging = true;
+        img.classList.add('dragging');
+
+        const point = e.type.startsWith('touch') ? e.touches[0] : e;
+        dragStartX = point.clientX;
+        dragStartY = point.clientY;
+
+        imgStartLeft = parseFloat(img.style.left || '0');
+        imgStartTop  = parseFloat(img.style.top  || '0');
+
+        window.addEventListener('mousemove', onDragMove);
+        window.addEventListener('mouseup', endDrag);
+        window.addEventListener('touchmove', onDragMove, { passive: false });
+        window.addEventListener('touchend', endDrag);
+    }
+
+    function onDragMove(e) {
+        if (!isDragging) return;
+        e.preventDefault();
+
+        const point = e.type.startsWith('touch') ? e.touches[0] : e;
+        const dx = point.clientX - dragStartX;
+        const dy = point.clientY - dragStartY;
+
+        let newLeft = imgStartLeft + dx;
+        let newTop  = imgStartTop  + dy;
+
+        const cw = cropBox.clientWidth;
+        const ch = cropBox.clientHeight;
+        const iw = img.clientWidth;
+        const ih = img.clientHeight;
+
+        const minLeft = cw - iw;
+        const minTop  = ch - ih;
+
+        newLeft = Math.min(0, Math.max(minLeft, newLeft));
+        newTop  = Math.min(0, Math.max(minTop, newTop));
+
+        img.style.left = newLeft + 'px';
+        img.style.top  = newTop  + 'px';
+    }
+
+    function endDrag() {
+        if (!isDragging) return;
+        isDragging = false;
+        img.classList.remove('dragging');
+        window.removeEventListener('mousemove', onDragMove);
+        window.removeEventListener('mouseup', endDrag);
+        window.removeEventListener('touchmove', onDragMove);
+        window.removeEventListener('touchend', endDrag);
+    }
+
+    img.addEventListener('mousedown', startDrag);
+    img.addEventListener('touchstart', startDrag, { passive: false });
+
+    // Copy cropped part to clipboard (underlying image stays full)
+    copyBtn.addEventListener('click', async () => {
+        clearStatus();
+        if (!imgLoaded) {
+            setStatus('No image to crop.', true);
+            return;
+        }
+
+        const cw = cropBox.clientWidth;
+        const ch = cropBox.clientHeight;
+        const iw = img.clientWidth;
+        const ih = img.clientHeight;
+
+        const left = parseFloat(img.style.left || '0');
+        const top  = parseFloat(img.style.top  || '0');
+
+        const scaleX = img.naturalWidth  / iw;
+        const scaleY = img.naturalHeight / ih;
+
+        const sx = -left * scaleX;
+        const sy = -top  * scaleY;
+        const sWidth  = cw * scaleX;
+        const sHeight = ch * scaleY;
+
+        const canvas = document.createElement('canvas');
+        canvas.width  = Math.round(sWidth);
+        canvas.height = Math.round(sHeight);
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(
+            img,
+            sx, sy, sWidth, sHeight,
+            0, 0, canvas.width, canvas.height
+        );
+
+        try {
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            if (!blob) {
+                setStatus('Failed to create cropped image blob.', true);
+                return;
+            }
+
+            if (navigator.clipboard && navigator.clipboard.write) {
+                const item = new ClipboardItem({ [blob.type]: blob });
+                await navigator.clipboard.write([item]);
+                setStatus('Cropped image copied to clipboard.');
+            } else {
+                setStatus('Clipboard image write not supported in this browser.', true);
+            }
+        } catch (err) {
+            console.error(err);
+            setStatus('Could not write image to clipboard (needs HTTPS + user gesture).', true);
+        }
+    });
+
+    // Refit image when window resizes
+    window.addEventListener('resize', () => {
+        if (imgLoaded) setupImageInContainer();
+    });
+</script>
+</body>
+</html>
