@@ -88,9 +88,20 @@
     position: absolute;
     pointer-events: none;
     z-index: 4;
+    top: 0;
+    left: 0;
+    transform-origin: top left;
 }
 
 .coverBlock {
     position: absolute;
     background: rgba(0, 0, 0, 0.65);
+}
+
+.coverHost {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 4;
 }

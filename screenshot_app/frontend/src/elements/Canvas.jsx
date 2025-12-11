@@ -223,28 +223,29 @@ export default function Canvas({
             )}
 
             {coverBoxes.length > 0 && metrics && (
-                <div
-                    className={`${styles.coverLayer}`}
-                    style={{
-                        left: metrics.relativeLeft,
-                        top: metrics.relativeTop,
-                        width: metrics.boxWidth,
-                        height: metrics.boxHeight,
-                        ...(!isCropping && appliedClipStyle ? appliedClipStyle : {}),
-                    }}
-                >
-                    {coverBoxes.map((box, idx) => (
-                        <div
-                            key={idx}
-                            className={styles.coverBlock}
-                            style={{
-                                left: box.relativeLeft - metrics.relativeLeft,
-                                top: box.relativeTop - metrics.relativeTop,
-                                width: box.width,
-                                height: box.height,
-                            }}
-                        />
-                    ))}
+                <div className={styles.coverHost}>
+                    <div
+                        className={styles.coverLayer}
+                        style={{
+                            width: metrics.boxWidth,
+                            height: metrics.boxHeight,
+                            transform: `translate(${metrics.relativeLeft}px, ${metrics.relativeTop}px)`,
+                            ...(!isCropping && appliedClipStyle ? appliedClipStyle : {}),
+                        }}
+                    >
+                        {coverBoxes.map((box, idx) => (
+                            <div
+                                key={idx}
+                                className={styles.coverBlock}
+                                style={{
+                                    left: box.relativeLeft - metrics.relativeLeft,
+                                    top: box.relativeTop - metrics.relativeTop,
+                                    width: box.width,
+                                    height: box.height,
+                                }}
+                            />
+                        ))}
+                    </div>
                 </div>
             )}
 
